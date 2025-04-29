@@ -3,23 +3,41 @@ package com.example.fhirpdf;
 import ca.uhn.fhir.context.FhirContext;
 import ca.uhn.fhir.parser.IParser;
 import com.lowagie.text.*;
+import com.lowagie.text.pdf.PdfPTable;
+import com.lowagie.text.pdf.PdfPCell;
 import com.lowagie.text.pdf.PdfWriter;
 import org.hl7.fhir.r4.model.*;
 
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
-import java.util.List;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
+import java.util.Map;
 
 public class FhirToPdfGenerator {
     public static void main(String[] args) throws Exception {
-        if (args.length < 2) {
-            System.out.println("Usage: java -jar FhirToPdfGenerator.jar <input.json> <output.pdf>");
+    	
+    	AnnotationJsonGenerator annotationGenerator = new AnnotationJsonGenerator();
+
+    	
+        if (args.length < 3) {
+            System.out.println("Usage: java -jar FhirToPdfGenerator.jar <input.json> <output.pdf> <language: en/it>");
             return;
         }
 
         String inputPath = args[0];
         String outputPath = args[1];
+        String language = args[2].toLowerCase();
+
+        if (!language.equals("en") && !language.equals("it")) {
+            System.out.println("Supported languages are 'en' (English) and 'it' (Italian).");
+            return;
+        }
+
+        Map<String, String> labels = getLabels(language);
 
         FhirContext ctx = FhirContext.forR4();
         IParser parser = ctx.newJsonParser();
@@ -30,144 +48,265 @@ public class FhirToPdfGenerator {
         PdfWriter.getInstance(document, new FileOutputStream(outputPath));
         document.open();
 
-        document.add(new Paragraph("📋 Cartella Clinica Completa", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18)));
+        // Add Logo
+        Image logo = Image.getInstance("logo.png");
+        logo.scaleToFit(100, 100);
+        logo.setAlignment(Image.ALIGN_RIGHT);
+        document.add(logo);
+        
+        // Header
+        document.add(new Paragraph(labels.get("hospital"), FontFactory.getFont(FontFactory.HELVETICA_BOLD, 16)));
+        document.add(new Paragraph(labels.get("department"), FontFactory.getFont(FontFactory.HELVETICA, 12)));
+        document.add(new Paragraph(labels.get("professor"), FontFactory.getFont(FontFactory.HELVETICA, 12)));
+        document.add(Chunk.NEWLINE);
+
+        document.add(new Paragraph(labels.get("reference"), FontFactory.getFont(FontFactory.HELVETICA_BOLD, 14)));
         document.add(Chunk.NEWLINE);
 
         for (Bundle.BundleEntryComponent entry : bundle.getEntry()) {
             Resource resource = entry.getResource();
-
             if (resource instanceof Patient) {
                 Patient patient = (Patient) resource;
-                document.add(new Paragraph("👤 Paziente"));
-                document.add(new Paragraph("Nome: " + patient.getNameFirstRep().getNameAsSingleString()));
-                document.add(new Paragraph("Sesso: " + patient.getGender()));
-                document.add(new Paragraph("Data di nascita: " + patient.getBirthDate()));
-                document.add(Chunk.NEWLINE);
-            } else if (resource instanceof Encounter) {
-                Encounter encounter = (Encounter) resource;
-                document.add(new Paragraph("🏥 Visita"));
-                document.add(new Paragraph("Data: " + (encounter.hasPeriod() ? encounter.getPeriod().getStart() : "N/A")));
-                document.add(new Paragraph("Tipo: " + encounter.getTypeFirstRep().getText()));
-                document.add(new Paragraph("Medico: " + (encounter.hasParticipant() ? encounter.getParticipantFirstRep().getIndividual().getDisplay() : "N/A")));
-                document.add(Chunk.NEWLINE);
-            } else if (resource instanceof Condition) {
-                Condition condition = (Condition) resource;
-                document.add(new Paragraph("🩺 Diagnosi"));
-                document.add(new Paragraph("Condizione: " + condition.getCode().getText()));
-                document.add(new Paragraph("Data diagnosi: " + condition.getRecordedDate()));
-                document.add(Chunk.NEWLINE);
-            } else if (resource instanceof Observation) {
-                Observation observation = (Observation) resource;
-                document.add(new Paragraph("📊 Osservazione"));
-                document.add(new Paragraph("Tipo: " + observation.getCode().getText()));
-                if (observation.hasValueQuantity()) {
-                    document.add(new Paragraph("Valore: " + observation.getValueQuantity().getValue() + " " + observation.getValueQuantity().getUnit()));
-                } else if (observation.hasValueStringType()) {
-                    document.add(new Paragraph("Valore: " + observation.getValueStringType().getValue()));
-                }
-                document.add(Chunk.NEWLINE);
-            } else if (resource instanceof MedicationRequest) {
-                MedicationRequest medRequest = (MedicationRequest) resource;
-                document.add(new Paragraph("💊 Prescrizione"));
-                document.add(new Paragraph("Farmaco: " + medRequest.getMedicationCodeableConcept().getText()));
-                document.add(new Paragraph("Stato: " + medRequest.getStatus()));
-                document.add(Chunk.NEWLINE);
-            } else if (resource instanceof Immunization) {
-                Immunization immunization = (Immunization) resource;
-                document.add(new Paragraph("💉 Vaccinazione"));
-                document.add(new Paragraph("Vaccino: " + immunization.getVaccineCode().getText()));
-                document.add(new Paragraph("Data somministrazione: " + immunization.getOccurrenceDateTimeType().getValue()));
-                document.add(new Paragraph("Stato: " + immunization.getStatus()));
-                document.add(Chunk.NEWLINE);
-            } else if (resource instanceof Procedure) {
-                Procedure procedure = (Procedure) resource;
-                document.add(new Paragraph("🔧 Procedura"));
-                document.add(new Paragraph("Tipo: " + procedure.getCode().getText()));
-                document.add(new Paragraph("Data: " + (procedure.hasPerformedDateTimeType() ? procedure.getPerformedDateTimeType().getValue() : "N/A")));
-                document.add(new Paragraph("Stato: " + procedure.getStatus()));
-                document.add(Chunk.NEWLINE);
-            } else if (resource instanceof Device) {
-                Device device = (Device) resource;
-                document.add(new Paragraph("📟 Dispositivo"));
-                document.add(new Paragraph("Tipo: " + device.getType().getText()));
-                document.add(new Paragraph("Stato: " + device.getStatus()));
-                document.add(Chunk.NEWLINE);
-            } else if (resource instanceof CareTeam) {
-                CareTeam team = (CareTeam) resource;
-                document.add(new Paragraph("👥 Team di cura"));
-                document.add(new Paragraph("Nome: " + team.getName()));
-                document.add(new Paragraph("Stato: " + team.getStatus()));
-                document.add(new Paragraph("Componenti:"));
-                for (CareTeam.CareTeamParticipantComponent member : team.getParticipant()) {
-                    document.add(new Paragraph(" - " + member.getMember().getDisplay()));
-                }
-                document.add(Chunk.NEWLINE);
-            } else if (resource instanceof CarePlan) {
-                CarePlan plan = (CarePlan) resource;
-                document.add(new Paragraph("📘 Piano di cura"));
-                document.add(new Paragraph("Titolo: " + plan.getTitle()));
-                document.add(new Paragraph("Stato: " + plan.getStatus()));
-                document.add(new Paragraph("Intento: " + plan.getIntent()));
-                document.add(Chunk.NEWLINE);
-            } else if (resource instanceof Claim) {
-                Claim claim = (Claim) resource;
-                document.add(new Paragraph("💸 Claim"));
-                document.add(new Paragraph("Tipo: " + claim.getType().getCodingFirstRep().getDisplay()));
-                if (claim.hasTotal()) {
-                    document.add(new Paragraph("Totale: " + claim.getTotal().getValue() + " " + claim.getTotal().getCurrency()));
-                }
-                document.add(Chunk.NEWLINE);
-            } else if (resource instanceof ExplanationOfBenefit) {
-                ExplanationOfBenefit eob = (ExplanationOfBenefit) resource;
-                document.add(new Paragraph("📑 EOB"));
-                if (eob.hasTotal()) {
-                    for (ExplanationOfBenefit.TotalComponent total : eob.getTotal()) {
-                        document.add(new Paragraph("Totale " + total.getCategory().getText() + ": " +
-                                total.getAmount().getValue() + " " + total.getAmount().getCurrency()));
-                    }
-                }
-                document.add(Chunk.NEWLINE);
-            } else if (resource instanceof SupplyDelivery) {
-                SupplyDelivery delivery = (SupplyDelivery) resource;
-                document.add(new Paragraph("📦 Consegna di materiali (SupplyDelivery)"));
-                document.add(new Paragraph("Stato: " + delivery.getStatus()));
 
-                if (delivery.hasType()) {
-                    if (delivery.getType().hasText()) {
-                        document.add(new Paragraph("Tipo: " + delivery.getType().getText()));
-                    } else if (delivery.getType().hasCoding()) {
-                        document.add(new Paragraph("Tipo: " + delivery.getType().getCodingFirstRep().getDisplay()));
-                    }
-                }
+                // Collect Patient Info
+                String fullName = patient.getNameFirstRep().getNameAsSingleString();
+                String firstName = patient.getNameFirstRep().getGivenAsSingleString();
+                String lastName = patient.getNameFirstRep().getFamily();
+                String gender = patient.hasGender() ? patient.getGender().getDisplay() : "N/A";
+                String birthDate = formatDate(patient.getBirthDate());
+                String phone = patient.hasTelecom() ? patient.getTelecomFirstRep().getValue() : "N/A";
+                Address addr = patient.hasAddress() ? patient.getAddressFirstRep() : null;
+                String street = (addr != null && addr.hasLine()) ? addr.getLine().get(0).getValue() : "N/A";
+                String city = (addr != null) ? addr.getCity() : "N/A";
+                String state = (addr != null) ? addr.getState() : "N/A";
+                String postalCode = (addr != null) ? addr.getPostalCode() : "N/A";
+                String country = (addr != null) ? addr.getCountry() : "N/A";
+                String addressUse = (addr != null && addr.hasUse()) ? getAddressUseLabel(addr.getUse().toCode(), language) : labels.get("home"); // Default to home/residenza
 
-                if (delivery.hasSuppliedItem()) {
-                    SupplyDelivery.SupplyDeliverySuppliedItemComponent item = delivery.getSuppliedItem();
-                    if (item.hasItemCodeableConcept()) {
-                        String itemName = item.getItemCodeableConcept().getText();
-                        if (itemName == null || itemName.isEmpty()) {
-                            itemName = item.getItemCodeableConcept().getCodingFirstRep().getDisplay();
-                        }
-                        document.add(new Paragraph("Oggetto fornito: " + itemName));
-                    }
-                    if (item.hasQuantity()) {
-                        document.add(new Paragraph("Quantità: " + item.getQuantity().getValue()));
-                    }
-                }
+                String motherMaidenName = getMothersMaidenName(patient);
+                String birthPlaceCity = getBirthPlace(patient, "city");
+                String birthPlaceState = getBirthPlace(patient, "state");
+                String birthPlaceCountry = getBirthPlace(patient, "country");
 
-                if (delivery.hasOccurrenceDateTimeType()) {
-                    document.add(new Paragraph("Data consegna: " + delivery.getOccurrenceDateTimeType().getValue()));
-                }
+                String medicalRecordNumber = getIdentifier(patient, "MR");
+                String ssn = getIdentifier(patient, "SS");
+                String driverLicense = getIdentifier(patient, "DL");
+                String passport = getIdentifier(patient, "PPN");
+                String maritalStatus = patient.hasMaritalStatus() ? patient.getMaritalStatus().getText() : "N/A";
 
-                document.add(Chunk.NEWLINE);
-            }
-                       
-            else {
-                document.add(new Paragraph("🔹 Risorsa non gestita: " + resource.getResourceType()));
-                document.add(Chunk.NEWLINE);
+                String communicationLanguage = getCommunicationLanguage(patient);
+                String latitude = (addr != null) ? getGeoCoordinate(addr, "latitude") : "N/A";
+                String longitude = (addr != null) ? getGeoCoordinate(addr, "longitude") : "N/A";
+                
+                // Write patient info table
+                PdfPTable table = new PdfPTable(2);
+                table.setWidthPercentage(100);
+                table.setSpacingBefore(10f);
+                table.setSpacingAfter(10f);
+
+                addTableRow(table, labels.get("fullName"), fullName);
+                addTableRow(table, labels.get("firstName"), firstName);
+                addTableRow(table, labels.get("lastName"), lastName);
+                addTableRow(table, labels.get("gender"), gender);
+                addTableRow(table, labels.get("birthDate"), birthDate);
+                addTableRow(table, labels.get("phone"), phone);
+                
+                //addTableRow(table, labels.get("addressUse"), addressUse);
+                addTableRow(table, labels.get("latitude"), latitude);
+                addTableRow(table, labels.get("longitude"), longitude);
+                addTableRow(table, labels.get("street"), street);
+                addTableRow(table, labels.get("city"), city);
+                addTableRow(table, labels.get("state"), state);
+                addTableRow(table, labels.get("postalCode"), postalCode);
+                addTableRow(table, labels.get("country"), country);
+
+                
+                addTableRow(table, labels.get("motherMaidenName"), motherMaidenName);
+                addTableRow(table, labels.get("birthPlaceCity"), birthPlaceCity);
+                addTableRow(table, labels.get("birthPlaceState"), birthPlaceState);
+                addTableRow(table, labels.get("birthPlaceCountry"), birthPlaceCountry);
+                addTableRow(table, labels.get("medicalRecordNumber"), medicalRecordNumber);
+                addTableRow(table, labels.get("ssn"), ssn);
+                addTableRow(table, labels.get("driverLicense"), driverLicense);
+                addTableRow(table, labels.get("passport"), passport);
+                addTableRow(table, labels.get("maritalStatus"), maritalStatus);
+                addTableRow(table, labels.get("communicationLanguage"), communicationLanguage);
+
+                document.add(table);
+
+                document.add(new Paragraph(labels.get("sincerely"), FontFactory.getFont(FontFactory.HELVETICA, 12)));
+                document.add(new Paragraph(labels.get("professor"), FontFactory.getFont(FontFactory.HELVETICA, 12)));
+                break; // only first patient
             }
         }
 
         document.close();
-        System.out.println("PDF generato in: " + outputPath);
+        System.out.println("PDF generated at: " + outputPath);
     }
+
+    private static Map<String, String> getLabels(String lang) {
+        Map<String, String> en = Map.ofEntries(
+            Map.entry("hospital", "Fictitious University Hospital"),
+            Map.entry("department", "Department of Internal Medicine"),
+            Map.entry("professor", "Prof. Malala Miller"),
+            Map.entry("reference", "Re: Medical Record of Patient"),
+            Map.entry("sincerely", "Sincerely,"),
+            Map.entry("fullName", "Full Name:"),
+            Map.entry("firstName", "First Name:"),
+            Map.entry("lastName", "Last Name:"),
+            Map.entry("gender", "Gender:"),
+            Map.entry("birthDate", "Birth Date:"),
+            Map.entry("phone", "Phone:"),
+            Map.entry("street", "Street:"),
+            Map.entry("city", "City:"),
+            Map.entry("state", "State:"),
+            Map.entry("postalCode", "Postal Code:"),
+            Map.entry("country", "Country:"),
+            Map.entry("motherMaidenName", "Mother's Maiden Name:"),
+            Map.entry("birthPlaceCity", "Birth Place City:"),
+            Map.entry("birthPlaceState", "Birth Place State:"),
+            Map.entry("birthPlaceCountry", "Birth Place Country:"),
+            Map.entry("medicalRecordNumber", "Medical Record Number:"),
+            Map.entry("ssn", "Social Security Number:"),
+            Map.entry("driverLicense", "Driver License Number:"),
+            Map.entry("passport", "Passport Number:"),
+            Map.entry("maritalStatus", "Marital Status:"),
+            Map.entry("communicationLanguage", "Communication Language:"),
+            Map.entry("latitude", "Latitude:"),
+            Map.entry("longitude", "Longitude:"),
+            Map.entry("addressUse", "Address Type:")
+
+        );
+
+        Map<String, String> it = Map.ofEntries(
+            Map.entry("hospital", "Ospedale Universitario Fittizio"),
+            Map.entry("department", "Dipartimento di Medicina Interna"),
+            Map.entry("professor", "Prof.ssa Malala Miller"),
+            Map.entry("reference", "Oggetto: Cartella clinica del paziente"),
+            Map.entry("sincerely", "Cordiali saluti,"),
+            Map.entry("fullName", "Nome completo:"),
+            Map.entry("firstName", "Nome:"),
+            Map.entry("lastName", "Cognome:"),
+            Map.entry("gender", "Sesso:"),
+            Map.entry("birthDate", "Data di nascita:"),
+            Map.entry("phone", "Telefono:"),
+            Map.entry("street", "Indirizzo:"),
+            Map.entry("city", "Città:"),
+            Map.entry("state", "Provincia:"),
+            Map.entry("postalCode", "CAP:"),
+            Map.entry("country", "Paese:"),
+            Map.entry("motherMaidenName", "Cognome da nubile della madre:"),
+            Map.entry("birthPlaceCity", "Città di nascita:"),
+            Map.entry("birthPlaceState", "Provincia di nascita:"),
+            Map.entry("birthPlaceCountry", "Paese di nascita:"),
+            Map.entry("medicalRecordNumber", "Numero di cartella clinica:"),
+            Map.entry("ssn", "Numero di previdenza sociale:"),
+            Map.entry("driverLicense", "Numero patente:"),
+            Map.entry("passport", "Numero passaporto:"),
+            Map.entry("maritalStatus", "Stato civile:"),
+            Map.entry("communicationLanguage", "Lingua di comunicazione:"),
+            Map.entry("latitude", "Latitudine:"),
+            Map.entry("longitude", "Longitudine:"),
+            Map.entry("addressUse", "Tipo di indirizzo:")
+        );
+
+        return lang.equals("it") ? it : en;
+    }
+
+    private static String formatDate(java.util.Date date) {
+        if (date == null) return "N/A";
+        LocalDate localDate = date.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        return localDate.format(formatter);
+    }
+
+    private static void addTableRow(PdfPTable table, String key, String value) {
+        PdfPCell cell1 = new PdfPCell(new Phrase(key, FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12)));
+        PdfPCell cell2 = new PdfPCell(new Phrase(value != null ? value : "", FontFactory.getFont(FontFactory.HELVETICA, 12)));
+        table.addCell(cell1);
+        table.addCell(cell2);
+    }
+
+    private static String getMothersMaidenName(Patient patient) {
+        for (Extension ext : patient.getExtension()) {
+            if (ext.getUrl().contains("patient-mothersMaidenName")) {
+                return ext.getValueAsPrimitive().getValueAsString();
+            }
+        }
+        return "N/A";
+    }
+
+    private static String getBirthPlace(Patient patient, String field) {
+        for (Extension ext : patient.getExtension()) {
+            if (ext.getUrl().contains("patient-birthPlace")) {
+                Address birthPlace = (Address) ext.getValue();
+                switch (field) {
+                    case "city": return birthPlace.getCity();
+                    case "state": return birthPlace.getState();
+                    case "country": return birthPlace.getCountry();
+                }
+            }
+        }
+        return "N/A";
+    }
+
+    private static String getIdentifier(Patient patient, String code) {
+        for (Identifier id : patient.getIdentifier()) {
+            if (id.hasType() && id.getType().hasCoding()) {
+                for (Coding coding : id.getType().getCoding()) {
+                    if (coding.getCode().equals(code)) {
+                        return id.getValue();
+                    }
+                }
+            }
+        }
+        return "N/A";
+    }
+    
+    private static String getCommunicationLanguage(Patient patient) {
+        if (patient.hasCommunication() && !patient.getCommunication().isEmpty()) {
+            Patient.PatientCommunicationComponent comm = patient.getCommunicationFirstRep();
+            if (comm.hasLanguage() && comm.getLanguage().hasText()) {
+                return comm.getLanguage().getText();
+            } else if (comm.hasLanguage() && comm.getLanguage().hasCoding()) {
+                return comm.getLanguage().getCodingFirstRep().getDisplay();
+            }
+        }
+        return "N/A";
+    }
+    
+    private static String getGeoCoordinate(Address address, String coordinateType) {
+        if (address.hasExtension()) {
+            for (Extension ext : address.getExtension()) {
+                if (ext.getUrl().contains("geolocation")) {
+                    for (Extension geoExt : ext.getExtension()) {
+                        if (geoExt.getUrl().equals(coordinateType)) {
+                            return geoExt.getValue().primitiveValue(); // returns string
+                        }
+                    }
+                }
+            }
+        }
+        return "N/A";
+    }
+    
+    private static String getAddressUseLabel(String useCode, String language) {
+        Map<String, String> en = Map.of(
+            "home", "Home Address",
+            "work", "Work Address",
+            "temp", "Temporary Address",
+            "old", "Previous Address"
+        );
+
+        Map<String, String> it = Map.of(
+            "home", "Residenza",
+            "work", "Indirizzo lavorativo",
+            "temp", "Domicilio temporaneo",
+            "old", "Vecchio indirizzo"
+        );
+
+        return (language.equals("it") ? it : en).getOrDefault(useCode, useCode);
+    }
+    
+    
 }
