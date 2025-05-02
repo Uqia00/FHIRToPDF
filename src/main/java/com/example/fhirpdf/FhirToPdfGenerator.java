@@ -8,9 +8,11 @@ import com.lowagie.text.pdf.PdfPCell;
 import com.lowagie.text.pdf.PdfWriter;
 import org.hl7.fhir.r4.model.*;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
+import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -20,22 +22,24 @@ import java.util.Map;
 public class FhirToPdfGenerator {
     public static void main(String[] args) throws Exception {
     	
-    	AnnotationJsonGenerator annotationGenerator = new AnnotationJsonGenerator();
+        AnnotationJsonGenerator annotationGenerator = new AnnotationJsonGenerator();
 
-    	
-        if (args.length < 3) {
-            System.out.println("Usage: java -jar FhirToPdfGenerator.jar <input.json> <output.pdf> <language: en/it>");
+        if (args.length < 2) {
+            System.out.println("Usage: java -jar FhirToCompletePdf.jar <input.json> <language: en/it>");
             return;
         }
 
         String inputPath = args[0];
-        String outputPath = args[1];
-        String language = args[2].toLowerCase();
+        String language = args[1].toLowerCase();
 
         if (!language.equals("en") && !language.equals("it")) {
             System.out.println("Supported languages are 'en' (English) and 'it' (Italian).");
             return;
         }
+        
+        // Auto-generate output path from input
+        String baseName = new File(inputPath).getName().replaceFirst("\\.json$", "");
+        String outputPdfPath = Paths.get("output", baseName + ".pdf").toString();
 
         Map<String, String> labels = getLabels(language);
 
@@ -45,7 +49,7 @@ public class FhirToPdfGenerator {
         Bundle bundle = parser.parseResource(Bundle.class, inputStream);
 
         Document document = new Document();
-        PdfWriter.getInstance(document, new FileOutputStream(outputPath));
+        PdfWriter.getInstance(document, new FileOutputStream(outputPdfPath));
         document.open();
 
         // Add Logo
@@ -141,7 +145,7 @@ public class FhirToPdfGenerator {
         }
 
         document.close();
-        System.out.println("PDF generated at: " + outputPath);
+        System.out.println("PDF generated at: " + outputPdfPath);
     }
 
     private static Map<String, String> getLabels(String lang) {
