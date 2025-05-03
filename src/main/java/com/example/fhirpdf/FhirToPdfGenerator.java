@@ -8,9 +8,11 @@ import com.lowagie.text.pdf.PdfPCell;
 import com.lowagie.text.pdf.PdfWriter;
 import org.hl7.fhir.r4.model.*;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
+import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -18,25 +20,26 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class FhirToPdfGenerator {
-
     public static void main(String[] args) throws Exception {
     	
-    	//AnnotationJsonGenerator annotationGenerator = new AnnotationJsonGenerator();
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        AnnotationJsonGenerator annotationGenerator = new AnnotationJsonGenerator();
 
-        if (args.length < 3) {
-            System.out.println("Usage: java -jar FhirToPdfGenerator.jar <input.json> <output.pdf> <language: en/it>");
+        if (args.length < 2) {
+            System.out.println("Usage: java -jar FhirToCompletePdf.jar <input.json> <language: en/it>");
             return;
         }
 
         String inputPath = args[0];
-        String outputPath = args[1];
-        String language = args[2].toLowerCase();
+        String language = args[1].toLowerCase();
 
         if (!language.equals("en") && !language.equals("it")) {
             System.out.println("Supported languages are 'en' (English) and 'it' (Italian).");
             return;
         }
+        
+        // Auto-generate output path from input
+        String baseName = new File(inputPath).getName().replaceFirst("\\.json$", "");
+        String outputPdfPath = Paths.get("output", baseName + ".pdf").toString();
 
         Map<String, String> labels = getLabels(language);
 
@@ -46,7 +49,7 @@ public class FhirToPdfGenerator {
         Bundle bundle = parser.parseResource(Bundle.class, inputStream);
 
         Document document = new Document();
-        PdfWriter.getInstance(document, new FileOutputStream(outputPath));
+        PdfWriter.getInstance(document, new FileOutputStream(outputPdfPath));
         document.open();
 
         // Add Logo
@@ -73,13 +76,8 @@ public class FhirToPdfGenerator {
                 String fullName = patient.getNameFirstRep().getNameAsSingleString();
                 String firstName = patient.getNameFirstRep().getGivenAsSingleString();
                 String lastName = patient.getNameFirstRep().getFamily();
-                //String gender = patient.hasGender() ? patient.getGender().getDisplay() : "N/A";
-                String gender = patient.hasGender() && "female".equalsIgnoreCase(patient.getGender().toCode())
-                        ? "Femmina"
-                        : "Maschio";
-
+                String gender = patient.hasGender() ? patient.getGender().getDisplay() : "N/A";
                 String birthDate = formatDate(patient.getBirthDate());
-
                 String phone = patient.hasTelecom() ? patient.getTelecomFirstRep().getValue() : "N/A";
                 Address addr = patient.hasAddress() ? patient.getAddressFirstRep() : null;
                 String street = (addr != null && addr.hasLine()) ? addr.getLine().get(0).getValue() : "N/A";
@@ -88,9 +86,6 @@ public class FhirToPdfGenerator {
                 String postalCode = (addr != null) ? addr.getPostalCode() : "N/A";
                 String country = (addr != null) ? addr.getCountry() : "N/A";
                 String addressUse = (addr != null && addr.hasUse()) ? getAddressUseLabel(addr.getUse().toCode(), language) : labels.get("home"); // Default to home/residenza
-
-                String taxCode = TaxCodeGeneratorItalian.generate(firstName, lastName,
-                        LocalDate.parse(birthDate, formatter),gender,city );
 
                 String motherMaidenName = getMothersMaidenName(patient);
                 String birthPlaceCity = getBirthPlace(patient, "city");
@@ -119,7 +114,6 @@ public class FhirToPdfGenerator {
                 addTableRow(table, labels.get("gender"), gender);
                 addTableRow(table, labels.get("birthDate"), birthDate);
                 addTableRow(table, labels.get("phone"), phone);
-                addTableRow(table, labels.get("taxCode"), taxCode);
                 
                 //addTableRow(table, labels.get("addressUse"), addressUse);
                 addTableRow(table, labels.get("latitude"), latitude);
@@ -129,6 +123,7 @@ public class FhirToPdfGenerator {
                 addTableRow(table, labels.get("state"), state);
                 addTableRow(table, labels.get("postalCode"), postalCode);
                 addTableRow(table, labels.get("country"), country);
+
                 
                 addTableRow(table, labels.get("motherMaidenName"), motherMaidenName);
                 addTableRow(table, labels.get("birthPlaceCity"), birthPlaceCity);
@@ -150,7 +145,7 @@ public class FhirToPdfGenerator {
         }
 
         document.close();
-        System.out.println("PDF generated at: " + outputPath);
+        System.out.println("PDF generated at: " + outputPdfPath);
     }
 
     private static Map<String, String> getLabels(String lang) {
@@ -183,9 +178,7 @@ public class FhirToPdfGenerator {
             Map.entry("communicationLanguage", "Communication Language:"),
             Map.entry("latitude", "Latitude:"),
             Map.entry("longitude", "Longitude:"),
-            Map.entry("addressUse", "Address Type:"),
-            Map.entry("taxCode", "Tax code")
-
+            Map.entry("addressUse", "Address Type:")
 
         );
 
@@ -218,9 +211,7 @@ public class FhirToPdfGenerator {
             Map.entry("communicationLanguage", "Lingua di comunicazione:"),
             Map.entry("latitude", "Latitudine:"),
             Map.entry("longitude", "Longitudine:"),
-            Map.entry("addressUse", "Tipo di indirizzo:"),
-                Map.entry("taxCode", "Codice Fiscale")
-
+            Map.entry("addressUse", "Tipo di indirizzo:")
         );
 
         return lang.equals("it") ? it : en;
