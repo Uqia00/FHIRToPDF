@@ -71,33 +71,50 @@ public class TaxCodeGeneratorItalian {
     }
 
     private static String getComuneCode(String comune) {
-        String code = COMUNE_CODICI.get(comune.toUpperCase());
+        if (comune == null) return "Z999";
+        String cleaned = comune.trim().toUpperCase().replaceAll("[^A-Z ]", "");
+        String code = COMUNE_CODICI.get(cleaned);
         if (code == null) {
-            System.err.println("⚠️ Comune non riconosciuto: " + comune + " " +
-                    "— uso codice predefinito Z999");
-            return "Z999"; // placeholder for unknown
+            System.err.println("⚠️ Comune non riconosciuto: " + comune + " — uso codice predefinito Z999");
+            return "Z999"; // placeholder
         }
         return code;
     }
 
     private static String getControlChar(String partialCode) {
         int sum = 0;
+
         for (int i = 0; i < partialCode.length(); i++) {
             char c = partialCode.charAt(i);
-            int index = c - 'A';
+            int index;
+            int value;
+
             if (Character.isDigit(c)) {
-                index = c - '0' + 26;
+                index = c - '0' + 26; // 0–9 → index 26–35
+            } else if (Character.isLetter(c)) {
+                index = Character.toUpperCase(c) - 'A'; // A–Z → index 0–25
+            } else {
+                System.err.println("⚠️ Invalid character in codice fiscale: '" + c + "'. Skipping.");
+                continue; // Skip invalid characters
+            }
+
+            // Skip out-of-bound indexes
+            if (index < 0 || index >= ODD_POSITION_VALUES.length) {
+                System.err.println("⚠️ Character '" + c + "' maps to invalid index: " + index + ". Skipping.");
+                continue;
             }
 
             if ((i + 1) % 2 == 0) {
-                sum += EVEN_POSITION_VALUES[index];
+                value = EVEN_POSITION_VALUES[index];
             } else {
-                sum += ODD_POSITION_VALUES[index];
+                value = ODD_POSITION_VALUES[index];
             }
+
+            sum += value;
         }
+
         return "" + CONTROL_CODE_CHARS[sum % 26];
     }
-
 
 
 

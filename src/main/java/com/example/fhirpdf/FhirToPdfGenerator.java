@@ -29,7 +29,9 @@ public class FhirToPdfGenerator {
             return;
         }
 
-        String inputPath = args[0];
+        String basePath = "C:\\GitHub\\FHIRToPDF\\Input\\";
+        String inputPath = basePath + args[0];
+
         String language = args[1].toLowerCase();
 
         if (!language.equals("en") && !language.equals("it")) {
@@ -38,8 +40,10 @@ public class FhirToPdfGenerator {
         }
         
         // Auto-generate output path from input
+
         String baseName = new File(inputPath).getName().replaceFirst("\\.json$", "");
-        String outputPdfPath = Paths.get("output", baseName + ".pdf").toString();
+
+        String outputPdfPath = Paths.get("output", baseName + "_"+language+ ".pdf").toString();
 
         Map<String, String> labels = getLabels(language);
 
@@ -76,7 +80,26 @@ public class FhirToPdfGenerator {
                 String fullName = patient.getNameFirstRep().getNameAsSingleString();
                 String firstName = patient.getNameFirstRep().getGivenAsSingleString();
                 String lastName = patient.getNameFirstRep().getFamily();
-                String gender = patient.hasGender() ? patient.getGender().getDisplay() : "N/A";
+                String gender = "N/A";
+
+                if (patient.hasGender()) {
+                    String genderCode = patient.getGender().toCode(); // "male", "female", "other", "unknown"
+                    switch (genderCode.toLowerCase()) {
+                        case "female":
+                            gender = "it".equalsIgnoreCase(language) ? "Femmina" : "Female";
+                            break;
+                        case "male":
+                            gender = "it".equalsIgnoreCase(language) ? "Maschio" : "Male";
+                            break;
+                        case "other":
+                            gender = "it".equalsIgnoreCase(language) ? "Altro" : "Other";
+                            break;
+                        case "unknown":
+                            gender = "it".equalsIgnoreCase(language) ? "Sconosciuto" : "Unknown";
+                            break;
+                    }
+                }
+
                 String birthDate = formatDate(patient.getBirthDate());
                 String phone = patient.hasTelecom() ? patient.getTelecomFirstRep().getValue() : "N/A";
                 Address addr = patient.hasAddress() ? patient.getAddressFirstRep() : null;
@@ -101,18 +124,27 @@ public class FhirToPdfGenerator {
                 String communicationLanguage = getCommunicationLanguage(patient);
                 String latitude = (addr != null) ? getGeoCoordinate(addr, "latitude") : "N/A";
                 String longitude = (addr != null) ? getGeoCoordinate(addr, "longitude") : "N/A";
-                
+
+                // Generate tax code
+                String genderCode = "M";
+                if ("female".equalsIgnoreCase(patient.getGender().toCode())) {
+                    genderCode = "F";
+                }
+                String cfComune = (birthPlaceCity != null && !birthPlaceCity.equals("N/A")) ? birthPlaceCity : city;
+                String taxCode = TaxCodeGeneratorItalian.generate(firstName, lastName, patient.getBirthDate().toInstant().atZone(ZoneId.systemDefault()).toLocalDate(), genderCode, cfComune);
+
                 // Write patient info table
                 PdfPTable table = new PdfPTable(2);
                 table.setWidthPercentage(100);
                 table.setSpacingBefore(10f);
                 table.setSpacingAfter(10f);
 
-                addTableRow(table, labels.get("fullName"), fullName);
+                //addTableRow(table, labels.get("fullName"), fullName);
                 addTableRow(table, labels.get("firstName"), firstName);
                 addTableRow(table, labels.get("lastName"), lastName);
                 addTableRow(table, labels.get("gender"), gender);
                 addTableRow(table, labels.get("birthDate"), birthDate);
+                addTableRow(table, labels.get("taxCode"), taxCode);
                 addTableRow(table, labels.get("phone"), phone);
                 
                 //addTableRow(table, labels.get("addressUse"), addressUse);
@@ -178,7 +210,9 @@ public class FhirToPdfGenerator {
             Map.entry("communicationLanguage", "Communication Language:"),
             Map.entry("latitude", "Latitude:"),
             Map.entry("longitude", "Longitude:"),
-            Map.entry("addressUse", "Address Type:")
+            Map.entry("addressUse", "Address Type:"),
+                Map.entry("taxCode", "Tax Code:")        // for English
+
 
         );
 
@@ -199,7 +233,7 @@ public class FhirToPdfGenerator {
             Map.entry("state", "Provincia:"),
             Map.entry("postalCode", "CAP:"),
             Map.entry("country", "Paese:"),
-            Map.entry("motherMaidenName", "Cognome da nubile della madre:"),
+            Map.entry("motherMaidenName", "Nome e Cognome da nubile della madre:"),
             Map.entry("birthPlaceCity", "Città di nascita:"),
             Map.entry("birthPlaceState", "Provincia di nascita:"),
             Map.entry("birthPlaceCountry", "Paese di nascita:"),
@@ -211,7 +245,9 @@ public class FhirToPdfGenerator {
             Map.entry("communicationLanguage", "Lingua di comunicazione:"),
             Map.entry("latitude", "Latitudine:"),
             Map.entry("longitude", "Longitudine:"),
-            Map.entry("addressUse", "Tipo di indirizzo:")
+            Map.entry("addressUse", "Tipo di indirizzo:"),
+                Map.entry("taxCode", "Codice Fiscale:")  // for Italian
+
         );
 
         return lang.equals("it") ? it : en;
