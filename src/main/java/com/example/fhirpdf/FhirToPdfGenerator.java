@@ -18,11 +18,12 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class FhirToPdfGenerator {
+
     public static void main(String[] args) throws Exception {
     	
-    	AnnotationJsonGenerator annotationGenerator = new AnnotationJsonGenerator();
+    	//AnnotationJsonGenerator annotationGenerator = new AnnotationJsonGenerator();
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
-    	
         if (args.length < 3) {
             System.out.println("Usage: java -jar FhirToPdfGenerator.jar <input.json> <output.pdf> <language: en/it>");
             return;
@@ -72,8 +73,13 @@ public class FhirToPdfGenerator {
                 String fullName = patient.getNameFirstRep().getNameAsSingleString();
                 String firstName = patient.getNameFirstRep().getGivenAsSingleString();
                 String lastName = patient.getNameFirstRep().getFamily();
-                String gender = patient.hasGender() ? patient.getGender().getDisplay() : "N/A";
+                //String gender = patient.hasGender() ? patient.getGender().getDisplay() : "N/A";
+                String gender = patient.hasGender() && "female".equalsIgnoreCase(patient.getGender().toCode())
+                        ? "Femmina"
+                        : "Maschio";
+
                 String birthDate = formatDate(patient.getBirthDate());
+
                 String phone = patient.hasTelecom() ? patient.getTelecomFirstRep().getValue() : "N/A";
                 Address addr = patient.hasAddress() ? patient.getAddressFirstRep() : null;
                 String street = (addr != null && addr.hasLine()) ? addr.getLine().get(0).getValue() : "N/A";
@@ -82,6 +88,9 @@ public class FhirToPdfGenerator {
                 String postalCode = (addr != null) ? addr.getPostalCode() : "N/A";
                 String country = (addr != null) ? addr.getCountry() : "N/A";
                 String addressUse = (addr != null && addr.hasUse()) ? getAddressUseLabel(addr.getUse().toCode(), language) : labels.get("home"); // Default to home/residenza
+
+                String taxCode = TaxCodeGeneratorItalian.generate(firstName, lastName,
+                        LocalDate.parse(birthDate, formatter),gender,city );
 
                 String motherMaidenName = getMothersMaidenName(patient);
                 String birthPlaceCity = getBirthPlace(patient, "city");
@@ -110,6 +119,7 @@ public class FhirToPdfGenerator {
                 addTableRow(table, labels.get("gender"), gender);
                 addTableRow(table, labels.get("birthDate"), birthDate);
                 addTableRow(table, labels.get("phone"), phone);
+                addTableRow(table, labels.get("taxCode"), taxCode);
                 
                 //addTableRow(table, labels.get("addressUse"), addressUse);
                 addTableRow(table, labels.get("latitude"), latitude);
@@ -119,7 +129,6 @@ public class FhirToPdfGenerator {
                 addTableRow(table, labels.get("state"), state);
                 addTableRow(table, labels.get("postalCode"), postalCode);
                 addTableRow(table, labels.get("country"), country);
-
                 
                 addTableRow(table, labels.get("motherMaidenName"), motherMaidenName);
                 addTableRow(table, labels.get("birthPlaceCity"), birthPlaceCity);
@@ -174,7 +183,9 @@ public class FhirToPdfGenerator {
             Map.entry("communicationLanguage", "Communication Language:"),
             Map.entry("latitude", "Latitude:"),
             Map.entry("longitude", "Longitude:"),
-            Map.entry("addressUse", "Address Type:")
+            Map.entry("addressUse", "Address Type:"),
+            Map.entry("taxCode", "Tax code")
+
 
         );
 
@@ -207,7 +218,9 @@ public class FhirToPdfGenerator {
             Map.entry("communicationLanguage", "Lingua di comunicazione:"),
             Map.entry("latitude", "Latitudine:"),
             Map.entry("longitude", "Longitudine:"),
-            Map.entry("addressUse", "Tipo di indirizzo:")
+            Map.entry("addressUse", "Tipo di indirizzo:"),
+                Map.entry("taxCode", "Codice Fiscale")
+
         );
 
         return lang.equals("it") ? it : en;
