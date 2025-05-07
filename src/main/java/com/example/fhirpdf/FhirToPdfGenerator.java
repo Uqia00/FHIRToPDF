@@ -121,7 +121,7 @@ public class FhirToPdfGenerator {
                 String passport = getIdentifier(patient, "PPN");
                 String maritalStatus = patient.hasMaritalStatus() ? patient.getMaritalStatus().getText() : "N/A";
 
-                String communicationLanguage = getCommunicationLanguage(patient);
+                String communicationLanguage = getCommunicationLanguage(patient, language);
                 String latitude = (addr != null) ? getGeoCoordinate(addr, "latitude") : "N/A";
                 String longitude = (addr != null) ? getGeoCoordinate(addr, "longitude") : "N/A";
 
@@ -302,14 +302,33 @@ public class FhirToPdfGenerator {
         }
         return "N/A";
     }
-    
-    private static String getCommunicationLanguage(Patient patient) {
+
+    private static String getCommunicationLanguage(Patient patient, String language) {
         if (patient.hasCommunication() && !patient.getCommunication().isEmpty()) {
             Patient.PatientCommunicationComponent comm = patient.getCommunicationFirstRep();
+            String langCode = null;
+
             if (comm.hasLanguage() && comm.getLanguage().hasText()) {
-                return comm.getLanguage().getText();
+                langCode = comm.getLanguage().getText().toLowerCase();
             } else if (comm.hasLanguage() && comm.getLanguage().hasCoding()) {
-                return comm.getLanguage().getCodingFirstRep().getDisplay();
+                langCode = comm.getLanguage().getCodingFirstRep().getDisplay().toLowerCase();
+            }
+
+            if (langCode != null) {
+                // Basic translation map
+                switch (langCode) {
+                    case "english":
+                        return "it".equalsIgnoreCase(language) ? "Inglese" : "English";
+                    case "italian":
+                        return "it".equalsIgnoreCase(language) ? "Italiano" : "Italian";
+                    case "french":
+                        return "it".equalsIgnoreCase(language) ? "Francese" : "French";
+                    case "spanish":
+                        return "it".equalsIgnoreCase(language) ? "Spagnolo" : "Spanish";
+                    default:
+                        // Return original with capital first letter
+                        return langCode.substring(0, 1).toUpperCase() + langCode.substring(1);
+                }
             }
         }
         return "N/A";
