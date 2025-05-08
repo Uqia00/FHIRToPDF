@@ -23,9 +23,17 @@ import org.hl7.fhir.r4.model.Resource;
 
 public class PatientPdfGenerator {
 	
-    public void generate(Bundle bundle, Document document, String language) throws Exception {
+    public void generate(Bundle bundle, Document document, String language, String baseName) throws Exception {
     	
         Map<String, String> labels = getLabels(language);
+        StringBuilder sofaBuilder = new StringBuilder();
+        // Header
+        String header = labels.get("hospital") + "\n" +
+                labels.get("department") + "\n" +
+                labels.get("professor") + "\n\n" +
+                labels.get("reference") + "\n\n";
+        sofaBuilder.append(header);
+
         // Header
         document.add(new Paragraph(labels.get("hospital"), FontFactory.getFont(FontFactory.HELVETICA_BOLD, 16)));
         document.add(new Paragraph(labels.get("department"), FontFactory.getFont(FontFactory.HELVETICA, 12)));
@@ -136,12 +144,12 @@ public class PatientPdfGenerator {
 
                 document.add(new Paragraph(labels.get("sincerely"), FontFactory.getFont(FontFactory.HELVETICA, 12)));
                 document.add(new Paragraph(labels.get("professor"), FontFactory.getFont(FontFactory.HELVETICA, 12)));
+                UimaAnnotationGenerator.generateUimaCasJson(patient, "annotations/" + baseName + "_" + language +"_patient"+ ".json", sofaBuilder.toString());
+
                 break; // only first patient
             }
         }
 
-        document.close();
-        System.out.println("PDF generated at: " + LocalDate.now());
     }
 	
     private static Map<String, String> getLabels(String lang) {

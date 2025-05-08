@@ -31,7 +31,22 @@ public class PdfLabelUtil {
             Map.entry("motherMaidenName", "Mother's Maiden Name:"),
             Map.entry("birthPlaceCity", "Birth Place City:"),
             Map.entry("birthPlaceState", "Birth Place State:"),
-            Map.entry("birthPlaceCountry", "Birth Place Country:")
+            Map.entry("birthPlaceCountry", "Birth Place Country:"),
+                Map.entry("encounterId", "Encounter ID:"),
+                Map.entry("encounterDate", "Encounter Date:"),
+                Map.entry("time", "Time:"),
+                Map.entry("from", "from"),
+                Map.entry("to", "to"),
+                Map.entry("encounterStatus", "Encounter Status:"),
+                Map.entry("encounterType", "Encounter Type:"),
+                Map.entry("class", "Class:"),
+                Map.entry("patientName", "Patient Name:"),
+                Map.entry("patientId", "Patient ID:"),
+                Map.entry("doctorName", "Doctor Name:"),
+                Map.entry("role", "Role:"),
+                Map.entry("visitPeriod", "Visit Period:"),
+                Map.entry("facility", "Facility:"),
+                Map.entry("facilityId", "Facility ID:")
         );
     }
 
@@ -58,7 +73,24 @@ public class PdfLabelUtil {
             Map.entry("motherMaidenName", "Nome e Cognome da nubile della madre:"),
             Map.entry("birthPlaceCity", "Città di nascita:"),
             Map.entry("birthPlaceState", "Provincia di nascita:"),
-            Map.entry("birthPlaceCountry", "Paese di nascita:")
+            Map.entry("birthPlaceCountry", "Paese di nascita:"),
+            Map.entry("encounterId", "Identificativo Incontro:"),
+                Map.entry("encounterDate", "Data Incontro:"),
+                Map.entry("time", "Orario:"),
+                Map.entry("from", "dalle"),
+                Map.entry("to", "alle"),
+                Map.entry("encounterStatus", "Stato Incontro:"),
+                Map.entry("encounterType", "Tipo Incontro:"),
+                Map.entry("class", "Classe:"),
+                Map.entry("patientName", "Nome Paziente:"),
+                Map.entry("patientId", "ID Paziente:"),
+                Map.entry("doctorName", "Nome Medico:"),
+                Map.entry("role", "Ruolo:"),
+                Map.entry("visitPeriod", "Periodo Visita:"),
+                Map.entry("facility", "Struttura:"),
+                Map.entry("facilityId", "Identificativo Struttura:")
         );
     }
+
+
 }

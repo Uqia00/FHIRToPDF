@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Date;
+import java.util.Locale;
 
 public class PdfFhirUtils {
 
@@ -22,6 +23,13 @@ public class PdfFhirUtils {
         PdfPCell cell2 = new PdfPCell(new Phrase(value != null ? value : "", FontFactory.getFont(FontFactory.HELVETICA, 12)));
         table.addCell(cell1);
         table.addCell(cell2);
+    }
+
+    public static String formatDateLocalized(Date date, String language) {
+        if (date == null) return "N/A";
+        Locale locale = language.equalsIgnoreCase("it") ? Locale.ITALIAN : Locale.ENGLISH;
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd MMMM yyyy", locale);
+        return date.toInstant().atZone(ZoneId.systemDefault()).toLocalDate().format(formatter);
     }
 
     public static String formatDate(Date date) {

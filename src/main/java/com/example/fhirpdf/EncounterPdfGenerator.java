@@ -39,7 +39,7 @@ public class EncounterPdfGenerator {
                 Date startDate = encounter.getPeriod().getStart();
                 Date endDate = encounter.getPeriod().getEnd();
 
-                String startDateStr = PdfFhirUtils.formatDate(startDate);
+                String startDateStr = PdfFhirUtils.formatDateLocalized(startDate, language);
                 String startTimeStr = PdfFhirUtils.formatTime(PdfFhirUtils.toLocalDateTime(startDate));
                 String endTimeStr = PdfFhirUtils.formatTime(PdfFhirUtils.toLocalDateTime(endDate));
 
@@ -68,19 +68,19 @@ public class EncounterPdfGenerator {
                 String serviceProvider = encounter.getServiceProvider().getDisplay();
                 String serviceProviderRef = encounter.getServiceProvider().getReference();
 
-                PdfFhirUtils.addTableRow(table, "Identificativo Incontro", encounterId);
-                PdfFhirUtils.addTableRow(table, "Data Incontro", startDateStr);
-                PdfFhirUtils.addTableRow(table, "Orario", "dalle " + startTimeStr + " alle " + endTimeStr);
-                PdfFhirUtils.addTableRow(table, "Stato Incontro", status);
-                PdfFhirUtils.addTableRow(table, "Tipo Incontro", typeDisplay);
-                PdfFhirUtils.addTableRow(table, "Classe", classDisplay);
-                PdfFhirUtils.addTableRow(table, "Nome Paziente", patientName);
-                PdfFhirUtils.addTableRow(table, "ID Paziente", patientId);
-                PdfFhirUtils.addTableRow(table, "Nome Medico", doctorName);
-                PdfFhirUtils.addTableRow(table, "Ruolo", role);
-                PdfFhirUtils.addTableRow(table, "Periodo Visita", "dalle " + performerStart + " alle " + performerEnd);
-                PdfFhirUtils.addTableRow(table, "Struttura", serviceProvider);
-                PdfFhirUtils.addTableRow(table, "Identificativo Struttura", serviceProviderRef);
+                PdfFhirUtils.addTableRow(table, labels.get("encounterId"), encounterId);
+                PdfFhirUtils.addTableRow(table, labels.get("encounterDate"), startDateStr);
+                PdfFhirUtils.addTableRow(table, labels.get("time"), labels.get("from") + " " + startTimeStr + " " + labels.get("to") + " " + endTimeStr);
+                PdfFhirUtils.addTableRow(table, labels.get("encounterStatus"), status);
+                PdfFhirUtils.addTableRow(table, labels.get("encounterType"), typeDisplay);
+                PdfFhirUtils.addTableRow(table, labels.get("class"), classDisplay);
+                PdfFhirUtils.addTableRow(table, labels.get("patientName"), patientName);
+                PdfFhirUtils.addTableRow(table, labels.get("patientId"), patientId);
+                PdfFhirUtils.addTableRow(table, labels.get("doctorName"), doctorName);
+                PdfFhirUtils.addTableRow(table, labels.get("role"), role);
+                PdfFhirUtils.addTableRow(table, labels.get("visitPeriod"), labels.get("from") + " " + performerStart + " " + labels.get("to") + " " + performerEnd);
+                PdfFhirUtils.addTableRow(table, labels.get("facility"), serviceProvider);
+                PdfFhirUtils.addTableRow(table, labels.get("facilityId"), serviceProviderRef);
 
                 document.add(table);
                 document.add(new Paragraph(labels.get("sincerely"), FontFactory.getFont(FontFactory.HELVETICA, 12)));
@@ -90,3 +90,4 @@ public class EncounterPdfGenerator {
         }
     }
 }
+
