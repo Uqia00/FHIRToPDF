@@ -11,6 +11,7 @@ import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.Map;
 
 import org.hl7.fhir.r4.model.Address;
@@ -50,7 +51,11 @@ public class PatientPdfGenerator {
 
                 // Collect Patient Info
                 String fullName = patient.getNameFirstRep().getNameAsSingleString();
-                String firstName = patient.getNameFirstRep().getGivenAsSingleString();
+
+                //String firstName = patient.getNameFirstRep().getGivenAsSingleString();
+                //Ignore middle name
+                String firstName = patient.getNameFirstRep().getGiven().get(0).getValue();
+
                 String lastName = patient.getNameFirstRep().getFamily();
                 String gender = "N/A";
 
@@ -91,7 +96,36 @@ public class PatientPdfGenerator {
                 String ssn = getIdentifier(patient, "SS");
                 String driverLicense = getIdentifier(patient, "DL");
                 String passport = getIdentifier(patient, "PPN");
-                String maritalStatus = patient.hasMaritalStatus() ? patient.getMaritalStatus().getText() : "N/A";
+                //String maritalStatus = patient.hasMaritalStatus() ? patient.getMaritalStatus().getText() : "N/A";
+                String maritalStatus = "N/A";
+                if (patient.hasMaritalStatus() && patient.getMaritalStatus().hasCoding()) {
+                    String code = patient.getMaritalStatus().getCodingFirstRep().getCode(); // "M", "D", etc.
+                    Map<String, String> maritalStatusTranslations = new HashMap<>();
+                    if ("it".equalsIgnoreCase(language)) {
+                        maritalStatusTranslations.put("A", "Annullato");
+                        maritalStatusTranslations.put("D", "Divorziato");
+                        maritalStatusTranslations.put("I", "Interlocutorio");
+                        maritalStatusTranslations.put("L", "Separato legalmente");
+                        maritalStatusTranslations.put("M", "Sposato");
+                        maritalStatusTranslations.put("P", "Poligamo");
+                        maritalStatusTranslations.put("T", "Partner domestico");
+                        maritalStatusTranslations.put("U", "Non sposato");
+                        maritalStatusTranslations.put("S", "Mai sposato");
+                        maritalStatusTranslations.put("W", "Vedovo");
+                    } else {
+                        maritalStatusTranslations.put("A", "Annulled");
+                        maritalStatusTranslations.put("D", "Divorced");
+                        maritalStatusTranslations.put("I", "Interlocutory");
+                        maritalStatusTranslations.put("L", "Legally Separated");
+                        maritalStatusTranslations.put("M", "Married");
+                        maritalStatusTranslations.put("P", "Polygamous");
+                        maritalStatusTranslations.put("T", "Domestic Partner");
+                        maritalStatusTranslations.put("U", "Unmarried");
+                        maritalStatusTranslations.put("S", "Never Married");
+                        maritalStatusTranslations.put("W", "Widowed");
+                    }
+                    maritalStatus = maritalStatusTranslations.getOrDefault(code, patient.getMaritalStatus().getText());
+                }
 
                 String communicationLanguage = getCommunicationLanguage(patient, language);
                 String latitude = (addr != null) ? getGeoCoordinate(addr, "latitude") : "N/A";
@@ -114,20 +148,20 @@ public class PatientPdfGenerator {
                 //addTableRow(table, labels.get("fullName"), fullName);
                 addTableRow(table, labels.get("firstName"), firstName);
                 addTableRow(table, labels.get("lastName"), lastName);
+
                 addTableRow(table, labels.get("gender"), gender);
                 addTableRow(table, labels.get("birthDate"), birthDate);
                 addTableRow(table, labels.get("taxCode"), taxCode);
                 addTableRow(table, labels.get("phone"), phone);
-                
+
                 //addTableRow(table, labels.get("addressUse"), addressUse);
-                addTableRow(table, labels.get("latitude"), latitude);
-                addTableRow(table, labels.get("longitude"), longitude);
+                //addTableRow(table, labels.get("latitude"), latitude);
+                //addTableRow(table, labels.get("longitude"), longitude);
                 addTableRow(table, labels.get("street"), street);
                 addTableRow(table, labels.get("city"), city);
                 addTableRow(table, labels.get("state"), state);
                 addTableRow(table, labels.get("postalCode"), postalCode);
                 addTableRow(table, labels.get("country"), country);
-
                 
                 addTableRow(table, labels.get("motherMaidenName"), motherMaidenName);
                 addTableRow(table, labels.get("birthPlaceCity"), birthPlaceCity);
@@ -135,16 +169,49 @@ public class PatientPdfGenerator {
                 addTableRow(table, labels.get("birthPlaceCountry"), birthPlaceCountry);
                 addTableRow(table, labels.get("medicalRecordNumber"), medicalRecordNumber);
                 addTableRow(table, labels.get("ssn"), ssn);
-                addTableRow(table, labels.get("driverLicense"), driverLicense);
-                addTableRow(table, labels.get("passport"), passport);
+                //addTableRow(table, labels.get("driverLicense"), driverLicense);
+                //addTableRow(table, labels.get("passport"), passport);
                 addTableRow(table, labels.get("maritalStatus"), maritalStatus);
+
+
                 addTableRow(table, labels.get("communicationLanguage"), communicationLanguage);
 
                 document.add(table);
 
                 document.add(new Paragraph(labels.get("sincerely"), FontFactory.getFont(FontFactory.HELVETICA, 12)));
                 document.add(new Paragraph(labels.get("professor"), FontFactory.getFont(FontFactory.HELVETICA, 12)));
-                UimaAnnotationGenerator.generateUimaCasJson(patient, "annotations/" + baseName + "_" + language +"_patient"+ ".json", sofaBuilder.toString());
+
+                //UimaAnnotationGenerator.generateUimaCasJson(patient, "annotations/" + baseName + "_" + language +"_patient"+ ".json", sofaBuilder.toString());
+
+                /*
+                    Sensitive field
+                 */
+                Map<String,String> evaluationKeyValueMap = new HashMap<>();
+                evaluationKeyValueMap.put("firstName",firstName);
+                evaluationKeyValueMap.put("lastName",lastName);
+                evaluationKeyValueMap.put("phone",phone);
+                evaluationKeyValueMap.put("taxCode",taxCode);
+                evaluationKeyValueMap.put("ssn",ssn);
+                evaluationKeyValueMap.put("motherMaidenName", motherMaidenName);
+                evaluationKeyValueMap.put("medicalRecordNumber",medicalRecordNumber);
+                evaluationKeyValueMap.put("address", street);
+
+                Map<String,String> whitelistKeyValueMap = new HashMap<>();
+                whitelistKeyValueMap.put("hospital", labels.get("hospital"));
+                whitelistKeyValueMap.put("department", labels.get("department"));
+                whitelistKeyValueMap.put("reference", labels.get("reference"));
+                whitelistKeyValueMap.put("city", city);
+                whitelistKeyValueMap.put("state", state);
+                whitelistKeyValueMap.put("postalCode", postalCode);
+                whitelistKeyValueMap.put("country", country);
+                whitelistKeyValueMap.put("communicationLanguage", communicationLanguage);
+                whitelistKeyValueMap.put("birthPlaceCity", birthPlaceCity);
+                whitelistKeyValueMap.put("birthPlaceState", birthPlaceState);
+                whitelistKeyValueMap.put("birthPlaceCountry", birthPlaceCountry);
+                whitelistKeyValueMap.put("maritalStatus", maritalStatus);;
+
+                EvaluationFieldExtractor.generateFieldValueJson(evaluationKeyValueMap, baseName, true, false);
+                EvaluationFieldExtractor.generateWhitelistJson(whitelistKeyValueMap, baseName, true, false);
 
                 break; // only first patient
             }
@@ -184,8 +251,6 @@ public class PatientPdfGenerator {
             Map.entry("longitude", "Longitude:"),
             Map.entry("addressUse", "Address Type:"),
                 Map.entry("taxCode", "Tax Code:")        // for English
-
-
         );
 
         Map<String, String> it = Map.ofEntries(

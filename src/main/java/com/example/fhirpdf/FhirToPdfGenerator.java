@@ -23,6 +23,7 @@ import java.util.Locale;
 import java.util.Map;
 
 public class FhirToPdfGenerator {
+
     public static void main(String[] args) throws Exception {
 
         if (args.length < 3) {

@@ -85,7 +85,7 @@ public class PdfLabelUtil {
                 Map.entry("patientName", "Nome Paziente:"),
                 Map.entry("patientId", "ID Paziente:"),
                 Map.entry("doctorName", "Nome Medico:"),
-                Map.entry("role", "Ruolo:"),
+                Map.entry("role", "Specializzazione:"),
                 Map.entry("visitPeriod", "Periodo Visita:"),
                 Map.entry("facility", "Struttura:"),
                 Map.entry("facilityId", "Identificativo Struttura:")
